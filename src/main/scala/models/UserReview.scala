@@ -1,11 +1,9 @@
 package models
 
-import org.apache.commons.net.ntp.TimeStamp
-
-case class UserReview(userId: String,
-                      bookId: String,
-                      reviewText: String,
+case class UserReview(asin: String,
                       overall: Double,
+                      reviewText: String,
+                      reviewTime: String,
+                      reviewerID: String,
                       summary: String,
-                      unixReviewTime: Double,
-                      reviewTime: TimeStamp)
+                      unixReviewTime: Double)
