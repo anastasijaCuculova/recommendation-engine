@@ -25,7 +25,7 @@ object DataInitializer {
 
     import session.implicits._
     val usersDataSet = dataFrameFilterColumns.as[User]
-    usersDataSet.show(10)
+   // usersDataSet.show(10)
     usersDataSet
   }
 
@@ -46,7 +46,7 @@ object DataInitializer {
 
     import session.implicits._
     val booksDataSet = dataFrameFilterColumns.as[Book]
-    booksDataSet.show(10)
+  //  booksDataSet.show(10)
     booksDataSet
   }
 
@@ -67,7 +67,7 @@ object DataInitializer {
 
     import session.implicits._
     val userReviewesDataSet = userReviewFilterColumns.as[UserReview]
-    userReviewesDataSet.show(10)
+    //userReviewesDataSet.show(10)
     userReviewesDataSet
   }
 }

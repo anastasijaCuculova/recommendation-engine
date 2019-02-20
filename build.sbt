@@ -10,8 +10,10 @@ libraryDependencies += "org.apache.spark" %% "spark-core" % "2.4.0"
 // https://mvnrepository.com/artifact/org.apache.spark/spark-sql
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.4.0"
 // https://mvnrepository.com/artifact/org.apache.spark/spark-mllib
-libraryDependencies += "org.apache.spark" %% "spark-mllib" % "2.4.0" % "runtime"
+libraryDependencies += "org.apache.spark" %% "spark-mllib" % "2.4.0"
 // https://mvnrepository.com/artifact/org.apache.spark/spark-streaming
 libraryDependencies += "org.apache.spark" %% "spark-streaming" % "2.4.0" % "provided"
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.15"
+// https://mvnrepository.com/artifact/com.jason-goodwin/better-monads
+libraryDependencies += "com.jason-goodwin" % "better-monads" % "0.4.0"
