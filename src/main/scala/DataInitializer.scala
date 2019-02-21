@@ -1,4 +1,5 @@
 import models.{Book, User, UserReview}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SQLContext, SparkSession}
 
 
@@ -8,7 +9,7 @@ object DataInitializer {
   val BOOKS_REVIEWS_PATH = "C:\\Users\\AnastasiaCuculova\\Downloads\\reviews_Books_5.json\\Books_5.json"
   val BOOKS_PATH = "C:\\Users\\AnastasiaCuculova\\Documents\\Books.txt"
 
-  def loadUsers(session: SparkSession, sc: SQLContext): Dataset[User] = {
+  def loadUsers(session: SparkSession, sc: SQLContext)= {
     //    val lines = sc.textFile(CSV_PATH)
     //    lines
     //      .filter(line => !line.split(COMMA_DELIMITER, -1)(2).equals("country"))
@@ -21,12 +22,22 @@ object DataInitializer {
       .option("header", "true")
       .option("inferSchema", value = true)
       .json(BOOKS_REVIEWS_PATH)
+
+ 
+
     val dataFrameFilterColumns = users.select("reviewerId", "reviewerName")
 
     import session.implicits._
     val usersDataSet = dataFrameFilterColumns.as[User]
-   // usersDataSet.show(10)
-    usersDataSet
+    
+    /** Assign unique Long id for each userId and bookId **/
+    val userIdToInt = parseUserStringIds(usersDataSet.rdd)
+
+    val dataFrame = usersDataSet.map(user => user.setId(userIdToInt.lookup(user.reviewerID).head.toInt)).toDF()
+   // dataFrameFilterColumns = dataFrame.select("id")
+    
+    dataFrame.show(10)
+    null
   }
 
   def loadBooks(session: SparkSession, sc: SQLContext): Dataset[Book] = {
@@ -42,11 +53,14 @@ object DataInitializer {
       .option("header", "true")
       .option("inferSchema", value = true)
       .json(BOOKS_REVIEWS_PATH)
-    val dataFrameFilterColumns = books.select("asin")
 
+
+    val dataFrameFilterColumns = books.select("asin")
     import session.implicits._
     val booksDataSet = dataFrameFilterColumns.as[Book]
-  //  booksDataSet.show(10)
+    val bookIdToInt = parseBookStringIds(booksDataSet.rdd)
+
+    booksDataSet.rdd.map(book => book.setId(bookIdToInt.lookup(book.asin).head.toInt))
     booksDataSet
   }
 
@@ -63,11 +77,19 @@ object DataInitializer {
       .option("header", "true")
       .option("inferSchema", value = true)
       .json(BOOKS_REVIEWS_PATH)
-    val userReviewFilterColumns = userReviews.select("asin", "overall", "reviewText", "reviewTime", "reviewerID", "summary", "unixReviewTime")
+    val userReviewFilterColumns = userReviews.select("overall", "reviewText", "reviewTime", "summary", "unixReviewTime")
 
     import session.implicits._
-    val userReviewesDataSet = userReviewFilterColumns.as[UserReview]
-    //userReviewesDataSet.show(10)
-    userReviewesDataSet
+    val userReviewsDataSet = userReviewFilterColumns.as[UserReview]
+    userReviewsDataSet
+  }
+
+
+  private def parseUserStringIds(reviewsRDD: RDD[User]): RDD[(String, Long)] = {
+    reviewsRDD.map(_.reviewerID).distinct().zipWithUniqueId()
+  }
+
+  private def parseBookStringIds(reviewsRDD: RDD[Book]): RDD[(String, Long)] = {
+    reviewsRDD.map(_.asin).distinct().zipWithUniqueId()
   }
 }
