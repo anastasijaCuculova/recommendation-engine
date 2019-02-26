@@ -1,4 +1,4 @@
-import models.UserReview
+import models.{Book, User, UserReview}
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.recommendation.{ALS, Rating}
 import org.apache.spark.rdd.RDD
@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 object PredictionUseCases {
 
 
-  def createTrainingAndTestSplits(reviews: RDD[UserReview], sc: SparkContext) {
+  def createTrainingAndTestSplits(reviews: RDD[UserReview], users: RDD[User], books: RDD[Book], sc: SparkContext) {
 
     val splits = reviews.randomSplit(Array[Double](0.8, 0.2))
 
@@ -19,10 +19,10 @@ object PredictionUseCases {
     System.out.println("Number of training reviews : " + numOfTrainingReviews)
     System.out.println("Number of testing reviews: " + numOfTestingReviews)
 
-    val trainingReviewsRDD = createReviewModel(trainingUserReviewsRDD, sc)
-    val testReviewsRDD = createReviewModel(testUserReviewsRDD, sc)
+    val trainingRatingsRDD = createReviewModel(trainingUserReviewsRDD, users, books, sc)
+    //val testReviewsRDD = createReviewModel(testUserReviewsRDD, users, books, sc)
 
-    prepareALS(trainingReviewsRDD)
+    prepareALS(trainingRatingsRDD)
   }
 
   private def prepareALS(trainingReviewsRDD: RDD[Rating]): Unit = {
@@ -35,8 +35,7 @@ object PredictionUseCases {
     val implicitPrefs = false
 
     /** References https://spark.apache.org/docs/2.2.0/api/scala/index.html#org.apache.spark.ml.recommendation.ALS
-      * Alternate Least Squares // Build the recommendation model using ALS on the training data
-      * **/
+      * Alternate Least Squares // Build the recommendation model using ALS on the training data **/
 
     val model = new ALS()
       .setIterations(numIterations)
@@ -48,19 +47,37 @@ object PredictionUseCases {
       .run(trainingReviewsRDD)
   }
 
-  private def createReviewModel(reviewsRDD: RDD[UserReview], sc: SparkContext): RDD[Rating] = {
-    //val reviews: RDD[Review] = sc.emptyRDD
+  private def createReviewModel(reviewsRDD: RDD[UserReview], users: RDD[User], books: RDD[Book], sc: SparkContext): RDD[Rating] = {
+    var ratings: RDD[Rating] = sc.emptyRDD
+
+    /** Assign unique Long id for each userId and bookId **/
+    val userIdToInt = parseUserStringIds(sc, users)
+    val bookIdToInt = parseBookStringIds(sc, books)
 
 
-    /* reviewsRDD.map(review => {
-       val userId = userIdToInt.lookup(review.reviewerID).head.toInt
+    val rdd1Broadcast = sc.broadcast(userIdToInt.collectAsMap())
+    val rdd2Broadcast = sc.broadcast(bookIdToInt.collectAsMap())
 
-       /** Well, you cannot access another RDD from a transformation. That is not allowed. **/
-       val bookId = bookIdToInt.lookup(review.asin).head.toInt
-       val rating = review.overall
-       Rating(userId, bookId, rating.toFloat)
-     })*/
-    null
+    val joined = reviewsRDD.mapPartitions({ iter =>
+      val m = rdd1Broadcast.value
+      val m2 = rdd2Broadcast.value
+      for {
+        review <- iter
+        if m.contains(review.reviewerId) && m2.contains(review.asin)
+      } yield (review.overall, m2(review.asin), m(review.reviewerId))
+    }, preservesPartitioning = true)
+
+    ratings = joined.map(item => {
+      Rating(item._2.toInt, item._3.toInt, item._1)
+    })
+    ratings
   }
 
+  def parseUserStringIds(sc: SparkContext, reviewsRDD: RDD[User]): RDD[(String, Long)] = {
+    reviewsRDD.map(_.reviewerID).distinct().zipWithUniqueId()
+  }
+
+  def parseBookStringIds(sc: SparkContext, reviewsRDD: RDD[Book]): RDD[(String, Long)] = {
+    reviewsRDD.map(_.asin).distinct().zipWithUniqueId()
+  }
 }

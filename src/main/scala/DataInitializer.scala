@@ -9,7 +9,7 @@ object DataInitializer {
   val BOOKS_REVIEWS_PATH = "C:\\Users\\AnastasiaCuculova\\Downloads\\reviews_Books_5.json\\Books_5.json"
   val BOOKS_PATH = "C:\\Users\\AnastasiaCuculova\\Documents\\Books.txt"
 
-  def loadUsers(session: SparkSession, sc: SQLContext)= {
+  def loadUsers(session: SparkSession, sc: SQLContext): Dataset[User] = {
     //    val lines = sc.textFile(CSV_PATH)
     //    lines
     //      .filter(line => !line.split(COMMA_DELIMITER, -1)(2).equals("country"))
@@ -23,21 +23,15 @@ object DataInitializer {
       .option("inferSchema", value = true)
       .json(BOOKS_REVIEWS_PATH)
 
- 
 
-    val dataFrameFilterColumns = users.select("reviewerId", "reviewerName")
+    var dataFrameFilterColumns = users.select("reviewerId", "reviewerName")
 
     import session.implicits._
-    val usersDataSet = dataFrameFilterColumns.as[User]
-    
-    /** Assign unique Long id for each userId and bookId **/
-    val userIdToInt = parseUserStringIds(usersDataSet.rdd)
+    var usersDataSet = dataFrameFilterColumns.as[User]
 
-    val dataFrame = usersDataSet.map(user => user.setId(userIdToInt.lookup(user.reviewerID).head.toInt)).toDF()
-   // dataFrameFilterColumns = dataFrame.select("id")
-    
-    dataFrame.show(10)
-    null
+    dataFrameFilterColumns = users.select("reviewerId", "reviewerName")
+    usersDataSet = dataFrameFilterColumns.as[User]
+    usersDataSet
   }
 
   def loadBooks(session: SparkSession, sc: SQLContext): Dataset[Book] = {
@@ -58,9 +52,6 @@ object DataInitializer {
     val dataFrameFilterColumns = books.select("asin")
     import session.implicits._
     val booksDataSet = dataFrameFilterColumns.as[Book]
-    val bookIdToInt = parseBookStringIds(booksDataSet.rdd)
-
-    booksDataSet.rdd.map(book => book.setId(bookIdToInt.lookup(book.asin).head.toInt))
     booksDataSet
   }
 
@@ -77,19 +68,10 @@ object DataInitializer {
       .option("header", "true")
       .option("inferSchema", value = true)
       .json(BOOKS_REVIEWS_PATH)
-    val userReviewFilterColumns = userReviews.select("overall", "reviewText", "reviewTime", "summary", "unixReviewTime")
+    val userReviewFilterColumns = userReviews.select("overall", "reviewerId", "asin", "reviewText", "reviewTime", "summary", "unixReviewTime")
 
     import session.implicits._
     val userReviewsDataSet = userReviewFilterColumns.as[UserReview]
     userReviewsDataSet
-  }
-
-
-  private def parseUserStringIds(reviewsRDD: RDD[User]): RDD[(String, Long)] = {
-    reviewsRDD.map(_.reviewerID).distinct().zipWithUniqueId()
-  }
-
-  private def parseBookStringIds(reviewsRDD: RDD[Book]): RDD[(String, Long)] = {
-    reviewsRDD.map(_.asin).distinct().zipWithUniqueId()
   }
 }

@@ -1,6 +1,8 @@
 package models
 
 case class UserReview(overall: Double,
+                      reviewerId: String,
+                      asin: String,
                       reviewText: String,
                       reviewTime: String,
                       summary: String,
